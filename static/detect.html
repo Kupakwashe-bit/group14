@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Object Detection</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .camera-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        #video, #canvas, #preview {
+            width: 100%;
+            display: block;
+            background: #000;
+        }
+        #canvas, #preview {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .detection-box {
+            position: absolute;
+            border: 2px solid #3B82F6;
+            background-color: rgba(59, 130, 246, 0.2);
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            padding: 2px 5px;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+        .detection-label {
+            background-color: #3B82F6;
+            padding: 2px 5px;
+            border-radius: 3px;
+            margin-top: 2px;
+            white-space: nowrap;
+        }
+        .detection-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">Real-time Object Detection</h1>
+            <p class="text-gray-600">Detect objects in real-time using your webcam or upload an image</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left Column -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="p-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">Camera Feed</h2>
+                        
+                        <div class="detection-container">
+                            <video id="video" autoplay playsinline></video>
+                            <canvas id="canvas"></canvas>
+                            <div id="detectionBoxes"></div>
+                            <img id="preview" class="hidden" alt="Preview">
+                        </div>
+
+                        <div class="mt-4 flex flex-wrap gap-2 justify-center">
+                            <button id="startCamera" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-video mr-2"></i> Start Camera
+                            </button>
+                            <button id="stopCamera" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors hidden">
+                                <i class="fas fa-stop mr-2"></i> Stop Camera
+                            </button>
+                            <button id="captureBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors hidden">
+                                <i class="fas fa-camera mr-2"></i> Capture
+                            </button>
+                            <button id="uploadBtn" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-upload mr-2"></i> Upload Image
+                            </button>
+                            <input type="file" id="fileInput" accept="image/*" class="hidden" />
+                            <button id="detectBtn" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors hidden">
+                                <i class="fas fa-search mr-2"></i> Detect Objects
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-xl shadow-md overflow-hidden h-full">
+                    <div class="p-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">Detections</h2>
+                        <div id="detectionsList" class="space-y-3 max-h-[500px] overflow-y-auto">
+                            <div class="text-center py-8 text-gray-400">
+                                <i class="fas fa-box-open fa-2x mb-2"></i>
+                                <p>No objects detected yet</p>
+                                <p class="text-sm mt-2">Start the camera or upload an image to begin detection</p>
+                            </div>
+                        </div>
+                        
+                        <div id="loading" class="hidden text-center py-4">
+                            <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
+                            <p class="text-gray-600">Detecting objects...</p>
+                        </div>
+                        
+                        <div id="error" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
+                            <p id="errorMessage"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="mt-12 text-center text-gray-500 text-sm">
+            <p>Powered by YOLOv5 and FastAPI | <a href="/" class="text-blue-500 hover:underline">Back to Home</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // DOM Elements
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const preview = document.getElementById('preview');
+        const detectionBoxes = document.getElementById('detectionBoxes');
+        const startCameraBtn = document.getElementById('startCamera');
+        const stopCameraBtn = document.getElementById('stopCamera');
+        const captureBtn = document.getElementById('captureBtn');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileInput = document.getElementById('fileInput');
+        const detectBtn = document.getElementById('detectBtn');
+        const detectionsList = document.getElementById('detectionsList');
+        const loadingDiv = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
+        const errorMessage = document.getElementById('errorMessage');
+
+        let stream = null;
+        let isDetecting = false;
+        let detectionInterval = null;
+
+        // Event Listeners
+        startCameraBtn.addEventListener('click', startCamera);
+        stopCameraBtn.addEventListener('click', stopCamera);
+        captureBtn.addEventListener('click', captureImage);
+        uploadBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileSelect);
+        detectBtn.addEventListener('click', detectObjects);
+
+        // Start webcam
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'environment'
+                    } 
+                });
+                
+                video.srcObject = stream;
+                video.play();
+                
+                // Show/hide appropriate buttons
+                startCameraBtn.classList.add('hidden');
+                stopCameraBtn.classList.remove('hidden');
+                captureBtn.classList.remove('hidden');
+                uploadBtn.classList.add('hidden');
+                detectBtn.classList.add('hidden');
+                
+                // Hide preview if shown
+                preview.classList.add('hidden');
+                canvas.classList.add('hidden');
+                detectionBoxes.innerHTML = '';
+                
+                // Clear detections
+                updateDetectionsList([]);
+                
+                // Start detection
+                startDetection();
+                
+            } catch (err) {
+                showError('Could not access the camera. Please make sure you have granted camera permissions.');
+                console.error('Error accessing camera:', err);
+            }
+        }
+
+        // Stop webcam
+        function stopCamera() {
+            if (stream) {
+                // Stop all tracks in the stream
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                
+                // Clear the video source
+                video.srcObject = null;
+                
+                // Show/hide appropriate buttons
+                startCameraBtn.classList.remove('hidden');
+                stopCameraBtn.classList.add('hidden');
+                captureBtn.classList.add('hidden');
+                uploadBtn.classList.remove('hidden');
+                detectBtn.classList.add('hidden');
+                
+                // Clear canvas and detections
+                clearCanvas();
+                detectionBoxes.innerHTML = '';
+                
+                // Stop detection
+                stopDetection();
+            }
+        }
+
+        // Capture image from webcam
+        function captureImage() {
+            if (!stream) return;
+            
+            // Set canvas dimensions to match video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Draw current video frame to canvas
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Show the captured image
+            preview.src = canvas.toDataURL('image/jpeg');
+            preview.classList.remove('hidden');
+            video.classList.add('hidden');
+            
+            // Show detect button
+            detectBtn.classList.remove('hidden');
+            captureBtn.classList.add('hidden');
+            
+            // Stop the camera to save resources
+            stopCamera();
+        }
+
+        // Handle file selection
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                preview.src = event.target.result;
+                preview.onload = function() {
+                    // Show the preview and hide other elements
+                    preview.classList.remove('hidden');
+                    video.classList.add('hidden');
+                    canvas.classList.add('hidden');
+                    detectionBoxes.innerHTML = '';
+                    
+                    // Show detect button
+                    detectBtn.classList.remove('hidden');
+                    
+                    // Clear previous detections
+                    updateDetectionsList([]);
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Start object detection
+        function startDetection() {
+            if (detectionInterval) return;
+            
+            // Run detection every 500ms
+            detectionInterval = setInterval(detectFrame, 500);
+        }
+        
+        // Stop object detection
+        function stopDetection() {
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+                detectionInterval = null;
+            }
+        }
+
+        // Detect objects in the current video frame
+        async function detectFrame() {
+            if (!stream) return;
+            
+            // Set canvas dimensions to match video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Draw current video frame to canvas
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert canvas to blob and send for detection
+            canvas.toBlob(async (blob) => {
+                try {
+                    const formData = new FormData();
+                    formData.append('file', blob, 'frame.jpg');
+                    
+                    const response = await fetch('/detect_json', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.detail || 'Failed to detect objects');
+                    }
+                    
+                    const data = await response.json();
+                    drawDetections(data.detections);
+                    updateDetectionsList(data.detections);
+                    
+                } catch (err) {
+                    console.error('Detection error:', err);
+                }
+            }, 'image/jpeg', 0.9);
+        }
+
+        // Detect objects in the current image
+        async function detectObjects() {
+            if (!preview.src) return;
+            
+            // Show loading state
+            loadingDiv.classList.remove('hidden');
+            errorDiv.classList.add('hidden');
+            
+            try {
+                // Convert preview image to blob
+                const response = await fetch(preview.src);
+                const blob = await response.blob();
+                
+                const formData = new FormData();
+                formData.append('file', blob, 'image.jpg');
+                
+                // Get detections as JSON
+                const detectResponse = await fetch('/detect_json', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!detectResponse.ok) {
+                    const error = await detectResponse.json();
+                    throw new Error(error.detail || 'Failed to detect objects');
+                }
+                
+                const data = await detectResponse.json();
+                drawDetections(data.detections);
+                updateDetectionsList(data.detections);
+                
+            } catch (err) {
+                showError(err.message || 'An error occurred while detecting objects');
+                console.error('Detection error:', err);
+            } finally {
+                loadingDiv.classList.add('hidden');
+            }
+        }
+
+        // Draw detection boxes on the canvas
+        function drawDetections(detections) {
+            if (!detections || detections.length === 0) {
+                detectionBoxes.innerHTML = '';
+                return;
+            }
+            
+            // Clear previous detections
+            detectionBoxes.innerHTML = '';
+            
+            // Get the dimensions of the video/preview
+            const container = document.querySelector('.detection-container');
+            const containerRect = container.getBoundingClientRect();
+            const img = preview.classList.contains('hidden') ? video : preview;
+            const scaleX = img.videoWidth ? img.videoWidth / img.offsetWidth : 1;
+            const scaleY = img.videoHeight ? img.videoHeight / img.offsetHeight : 1;
+            
+            // Draw each detection
+            detections.forEach(det => {
+                const [x1, y1, x2, y2] = det.box;
+                const score = det.score;
+                const label = det.label;
+                
+                // Scale coordinates to match the displayed image
+                const scaledX1 = x1 / scaleX;
+                const scaledY1 = y1 / scaleY;
+                const width = (x2 - x1) / scaleX;
+                const height = (y2 - y1) / scaleY;
+                
+                // Create detection box element
+                const box = document.createElement('div');
+                box.className = 'detection-box';
+                box.style.left = `${scaledX1}px`;
+                box.style.top = `${scaledY1}px`;
+                box.style.width = `${width}px`;
+                box.style.height = `${height}px`;
+                
+                // Add label with confidence
+                const labelEl = document.createElement('div');
+                labelEl.className = 'detection-label';
+                labelEl.textContent = `${label} ${(score * 100).toFixed(1)}%`;
+                
+                box.appendChild(labelEl);
+                detectionBoxes.appendChild(box);
+            });
+        }
+
+        // Update the detections list
+        function updateDetectionsList(detections) {
+            if (!detections || detections.length === 0) {
+                detectionsList.innerHTML = `
+                    <div class="text-center py-8 text-gray-400">
+                        <i class="fas fa-box-open fa-2x mb-2"></i>
+                        <p>No objects detected</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Group detections by label
+            const detectionsByLabel = detections.reduce((acc, det) => {
+                if (!acc[det.label]) {
+                    acc[det.label] = [];
+                }
+                acc[det.label].push(det);
+                return acc;
+            }, {});
+            
+            // Create HTML for detections
+            let html = '';
+            
+            Object.entries(detectionsByLabel).forEach(([label, items]) => {
+                const count = items.length;
+                const avgConfidence = (items.reduce((sum, det) => sum + det.score, 0) / count * 100).toFixed(1);
+                
+                html += `
+                    <div class="bg-gray-50 p-3 rounded-lg mb-2">
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium">${label}</span>
+                            <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                                ${count} ${count === 1 ? 'item' : 'items'}
+                            </span>
+                        </div>
+                        <div class="mt-1">
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-600 h-2 rounded-full" style="width: ${avgConfidence}%"></div>
+                            </div>
+                            <div class="text-right text-xs text-gray-500 mt-1">Avg. confidence: ${avgConfidence}%</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            detectionsList.innerHTML = html;
+        }
+
+        // Clear the canvas
+        function clearCanvas() {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Show error message
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorDiv.classList.remove('hidden');
+            
+            // Hide error after 5 seconds
+            setTimeout(() => {
+                errorDiv.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            stopCamera();
+        });
+    </script>
+</body>
+</html>

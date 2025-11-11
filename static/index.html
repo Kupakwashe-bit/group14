@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Computer Vision System</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .transition-all {
+            transition: all 0.3s ease;
+        }
+        .camera-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            margin: 0 auto;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        #video {
+            width: 100%;
+            display: block;
+            background: #000;
+        }
+        #canvas {
+            display: none;
+        }
+        .prediction-card {
+            transition: all 0.3s ease;
+        }
+        .prediction-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .progress-bar {
+            height: 0.5rem;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav class="flex justify-between items-center py-4 px-6">
+                <div class="text-2xl font-bold text-gray-800">CV System</div>
+                <div class="space-x-4">
+                    <a href="/" class="text-gray-600 hover:text-gray-800">Home</a>
+                    <a href="/cifar10.html" class="text-gray-600 hover:text-gray-800">CIFAR-10 Classifier</a>
+                    <a href="#" class="text-gray-600 hover:text-gray-800">About</a>
+                    <a href="#" class="text-gray-600 hover:text-gray-800">Contact</a>
+                </div>
+            </nav>
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 flex items-center">
+                        <i class="fas fa-robot text-indigo-600 text-2xl mr-2"></i>
+                        <span class="text-xl font-bold text-gray-800">VisionAI</span>
+                    </div>
+                </div>
+                <div class="hidden md:ml-6 md:flex md:items-center space-x-8">
+                    <a href="/" class="text-indigo-600 border-b-2 border-indigo-500 px-1 pt-1 text-sm font-medium">
+                        Image Classification
+                    </a>
+                    <a href="/detect.html" class="text-gray-500 hover:text-gray-700 px-1 pt-1 text-sm font-medium">
+                        Object Detection
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">Image Classification</h1>
+            <p class="text-gray-600">Upload an image or use your webcam to classify objects using ResNet50</p>
+        </header>
+
+        <!-- Feature Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 max-w-6xl mx-auto">
+            <a href="/" class="bg-white rounded-xl shadow-md p-6 text-center card-hover transition-all">
+                <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-images text-indigo-600 text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Image Classification</h3>
+                <p class="text-gray-600 text-sm">Classify images into 1000+ categories using ResNet50</p>
+                <div class="mt-4 text-indigo-600 text-sm font-medium">
+                    Try it now <i class="fas fa-arrow-right ml-1"></i>
+                </div>
+            </a>
+            
+            <a href="/detect.html" class="bg-white rounded-xl shadow-md p-6 text-center card-hover transition-all">
+                <div class="bg-pink-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-search text-pink-600 text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Object Detection</h3>
+                <p class="text-gray-600 text-sm">Detect and locate objects in real-time using YOLOv5</p>
+                <div class="mt-4 text-pink-600 text-sm font-medium">
+                    Try it now <i class="fas fa-arrow-right ml-1"></i>
+                </div>
+            </a>
+            
+            <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg p-6 text-center text-white">
+                <div class="bg-white bg-opacity-20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-bolt text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-semibold mb-2">Powered by PyTorch</h3>
+                <p class="text-indigo-100 text-sm mb-4">Leveraging state-of-the-art deep learning models</p>
+                <a href="https://pytorch.org/" target="_blank" class="inline-block bg-white text-indigo-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-opacity-90 transition-all">
+                    Learn more
+                </a>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            <!-- Left Column -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Input</h2>
+                    <div class="mb-4">
+                        <div class="flex space-x-2 mb-4">
+                            <button id="uploadBtn" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-upload mr-2"></i> Upload Image
+                            </button>
+                            <button id="cameraBtn" class="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-camera mr-2"></i> Use Webcam
+                            </button>
+                        </div>
+                        <input type="file" id="fileInput" accept="image/*" class="hidden" />
+                    </div>
+
+                    <div class="camera-container">
+                        <video id="video" autoplay playsinline></video>
+                        <canvas id="canvas"></canvas>
+                        <div id="imagePreview" class="hidden">
+                            <img id="preview" src="" alt="Preview" class="w-full h-auto">
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex justify-center space-x-4">
+                        <button id="captureBtn" class="hidden bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-full transition-colors">
+                            <i class="fas fa-camera mr-2"></i> Capture
+                        </button>
+                        <button id="classifyBtn" class="hidden bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-full transition-colors">
+                            <i class="fas fa-search mr-2"></i> Classify
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Predictions</h2>
+                    <div id="predictions" class="space-y-4">
+                        <div class="text-center py-8 text-gray-400">
+                            <i class="fas fa-image fa-3x mb-2"></i>
+                            <p>Upload an image or use your webcam to see predictions</p>
+                        </div>
+                    </div>
+                    
+                    <div id="loading" class="hidden text-center py-4">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
+                        <p class="text-gray-600">Analyzing image...</p>
+                    </div>
+                    
+                    <div id="error" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
+                        <p id="errorMessage"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="mt-16 py-8 border-t border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="md:flex md:items-center md:justify-between">
+                    <div class="flex justify-center md:justify-start space-x-6">
+                        <a href="#" class="text-gray-400 hover:text-gray-500">
+                            <span class="sr-only">GitHub</span>
+                            <i class="fab fa-github text-xl"></i>
+                        </a>
+                    </div>
+                    <p class="mt-8 text-base text-gray-400 md:mt-0 md:order-1">
+                        &copy; 2023 VisionAI. All rights reserved.
+                    </p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // DOM Elements
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureBtn = document.getElementById('captureBtn');
+        const classifyBtn = document.getElementById('classifyBtn');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const cameraBtn = document.getElementById('cameraBtn');
+        const fileInput = document.getElementById('fileInput');
+        const preview = document.getElementById('preview');
+        const imagePreview = document.getElementById('imagePreview');
+        const predictionsDiv = document.getElementById('predictions');
+        const loadingDiv = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
+        const errorMessage = document.getElementById('errorMessage');
+
+        let stream = null;
+        let currentImage = null;
+
+        // Event Listeners
+        uploadBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', handleFileSelect);
+        cameraBtn.addEventListener('click', startCamera);
+        captureBtn.addEventListener('click', captureImage);
+        classifyBtn.addEventListener('click', classifyImage);
+
+        // Handle file selection
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            stopCamera();
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                preview.src = event.target.result;
+                imagePreview.classList.remove('hidden');
+                classifyBtn.classList.remove('hidden');
+                currentImage = file;
+                resetUI();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Start webcam
+        async function startCamera() {
+            resetUI();
+            imagePreview.classList.add('hidden');
+            
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'environment' 
+                    } 
+                });
+                video.srcObject = stream;
+                video.classList.remove('hidden');
+                captureBtn.classList.remove('hidden');
+                classifyBtn.classList.add('hidden');
+                errorDiv.classList.add('hidden');
+            } catch (err) {
+                showError('Could not access the camera. Please make sure you have granted camera permissions.');
+                console.error('Error accessing camera:', err);
+            }
+        }
+
+        // Capture image from webcam
+        function captureImage() {
+            if (!stream) return;
+            
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert canvas to blob and create a file
+            canvas.toBlob((blob) => {
+                const file = new File([blob], 'capture.jpg', { type: 'image/jpeg' });
+                currentImage = file;
+                
+                // Show preview
+                preview.src = canvas.toDataURL('image/jpeg');
+                imagePreview.classList.remove('hidden');
+                classifyBtn.classList.remove('hidden');
+                captureBtn.classList.add('hidden');
+                
+                // Stop the camera to save resources
+                stopCamera();
+                
+            }, 'image/jpeg', 0.9);
+        }
+
+        // Stop webcam
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                video.srcObject = null;
+                video.classList.add('hidden');
+                captureBtn.classList.add('hidden');
+            }
+        }
+
+        // Classify the current image
+        async function classifyImage() {
+            if (!currentImage) {
+                showError('No image selected. Please upload an image or take a photo with the webcam.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', currentImage);
+
+            // Show loading state
+            loadingDiv.classList.remove('hidden');
+            errorDiv.classList.add('hidden');
+            predictionsDiv.innerHTML = '';
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to classify image');
+                }
+
+                const data = await response.json();
+                displayPredictions(data.predictions);
+            } catch (err) {
+                showError(err.message || 'An error occurred while classifying the image');
+                console.error('Classification error:', err);
+            } finally {
+                loadingDiv.classList.add('hidden');
+            }
+        }
+
+        // Display predictions
+        function displayPredictions(predictions) {
+            predictionsDiv.innerHTML = '';
+            
+            if (!predictions || predictions.length === 0) {
+                predictionsDiv.innerHTML = `
+                    <div class="text-center py-4 text-gray-500">
+                        <p>No predictions available</p>
+                    </div>
+                `;
+                return;
+            }
+
+            predictions.forEach(pred => {
+                const percentage = Math.round(pred.confidence * 100);
+                const predictionElement = document.createElement('div');
+                predictionElement.className = 'prediction-card bg-white p-4 rounded-lg border border-gray-200';
+                predictionElement.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-medium text-gray-800">${pred.label.replace(/_/g, ' ')}</span>
+                        <span class="text-sm font-semibold text-blue-600">${percentage}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div class="bg-blue-600 h-2.5 rounded-full progress-bar" style="width: ${percentage}%"></div>
+                    </div>
+                `;
+                predictionsDiv.appendChild(predictionElement);
+            });
+        }
+
+        // Show error message
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+
+        // Reset UI elements
+        function resetUI() {
+            predictionsDiv.innerHTML = `
+                <div class="text-center py-8 text-gray-400">
+                    <i class="fas fa-image fa-3x mb-2"></i>
+                    <p>Upload an image or use your webcam to see predictions</p>
+                </div>
+            `;
+            errorDiv.classList.add('hidden');
+        }
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            stopCamera();
+        });
+    </script>
+</body>
+</html>
